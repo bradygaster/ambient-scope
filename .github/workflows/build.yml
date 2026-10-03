@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test native analyzer and renderer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends clang
+          bash tools/test.sh
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: "1.5.1"
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.10
+      - name: Build firmware
+        env:
+          ARDUINO_CONFIG: /home/runner/.arduino15/arduino-cli.yaml
+        run: bash tools/arduino.sh build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ambient-scope-firmware
+          path: |
+            build/firmware/AmbientScope.ino.bin
+            build/firmware/AmbientScope.ino.bootloader.bin
+            build/firmware/AmbientScope.ino.partitions.bin
